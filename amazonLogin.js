@@ -49,7 +49,6 @@ async function loadSession(page) {
 async function isLoggedIn(page) {
   const url = page.url();
 
-  // Common post-login URLs
   if (
     url.includes("youraccount") ||
     url.includes("ref_=nav_signin") ||
@@ -58,7 +57,6 @@ async function isLoggedIn(page) {
     return true;
   }
 
-  // Check for "Hello, <Name>" in nav bar
   const helloUser = await page.$("#nav-link-accountList span.nav-line-1");
   if (helloUser) {
     const text = await page.evaluate((el) => el.innerText, helloUser);
@@ -67,12 +65,22 @@ async function isLoggedIn(page) {
     }
   }
 
-  // Check if "Sign Out" link exists
   if (await page.$("a#nav-item-signout, a[href*='signout']")) {
     return true;
   }
 
   return false;
+}
+
+// ================= BROWSER LAUNCH HELPER =================
+async function launchBrowser() {
+  return await puppeteer.launch({
+    headless: true,
+    args: chromium.args,
+    executablePath:
+      (await chromium.executablePath) || puppeteer.executablePath(), // ✅ important
+    defaultViewport: chromium.defaultViewport,
+  });
 }
 
 // ================= API: SIGNIN =================
@@ -82,11 +90,7 @@ app.post("/signin", async (req, res) => {
     return res.status(400).json({ error: "Missing email/password" });
 
   try {
-    browser = await puppeteer.launch({
-      headless: true,
-      args: ["--no-sandbox", "--disable-setuid-sandbox"],
-    });
-
+    browser = await launchBrowser();
     page = await browser.newPage();
     await page.goto(loginUrl, { waitUntil: "networkidle2" });
 
@@ -96,21 +100,17 @@ app.post("/signin", async (req, res) => {
 
     await page.type("#ap_password", password, { delay: 50 });
 
-    // Keep me signed in
     try {
       await page.waitForSelector("input[name='rememberMe']", { timeout: 2000 });
       await page.evaluate(() => {
         const cb = document.querySelector("input[name='rememberMe']");
         if (cb && !cb.checked) cb.click();
       });
-    } catch (e) {
-      console.log("ℹ️ Remember me checkbox not found, skipping...");
-    }
+    } catch (e) {}
 
     await page.click("#signInSubmit");
     await page.waitForNavigation({ waitUntil: "networkidle2", timeout: 15000 }).catch(() => {});
 
-    // 🔍 OTP required
     if (
       (await page.$("input[name='otpCode']")) ||
       (await page.$("#auth-mfa-otpcode")) ||
@@ -122,7 +122,6 @@ app.post("/signin", async (req, res) => {
       });
     }
 
-    // 🔍 Logged in successfully
     if (await isLoggedIn(page)) {
       await saveSession(page);
       return res.json({ status: "success", message: "Logged in without OTP" });
@@ -149,16 +148,13 @@ app.post("/submit-otp", async (req, res) => {
 
     await page.type(otpSelector, otp, { delay: 50 });
 
-    // Remember device
     try {
       await page.waitForSelector("#auth-mfa-remember-device", { timeout: 2000 });
       await page.evaluate(() => {
         const cb = document.querySelector("#auth-mfa-remember-device");
         if (cb && !cb.checked) cb.click();
       });
-    } catch (e) {
-      console.log("ℹ️ Remember device checkbox not found, skipping...");
-    }
+    } catch (e) {}
 
     await page.click("input[type='submit']");
     await page.waitForNavigation({ waitUntil: "networkidle2", timeout: 15000 });
@@ -182,10 +178,7 @@ app.post("/recharge", async (req, res) => {
     return res.status(400).json({ error: "Missing mobileNumber/amount" });
 
   try {
-    const rechargeBrowser = await puppeteer.launch({
-      headless: true,
-      args: ["--no-sandbox", "--disable-setuid-sandbox"],
-    });
+    const rechargeBrowser = await launchBrowser();
     const rechargePage = await rechargeBrowser.newPage();
 
     if (!(await loadSession(rechargePage)) || !(await isLoggedIn(rechargePage))) {
@@ -196,7 +189,6 @@ app.post("/recharge", async (req, res) => {
 
     await rechargePage.goto(rechargeUrl, { waitUntil: "networkidle2" });
 
-    // Shadow DOM input
     const mobileInputHandle = await rechargePage.evaluateHandle(() => {
       const el = document.querySelector("tux-input[name='landingPageMobileNumber']");
       return el && el.shadowRoot.querySelector("input");
@@ -214,7 +206,6 @@ app.post("/recharge", async (req, res) => {
     await rechargePage.keyboard.press("Tab");
     await rechargePage.keyboard.press("Enter");
 
-    // Select Amazon Pay Balance
     await rechargePage.waitForSelector("input[name='ppw-instrumentRowSelection']", {
       visible: true,
       timeout: 20000,
@@ -224,7 +215,6 @@ app.post("/recharge", async (req, res) => {
       "input[name='ppw-widgetEvent:SetPaymentPlanSelectContinueEvent']"
     );
 
-    // ✅ Get Order ID
     await rechargePage.waitForSelector(".tran-id-sec.tux-text", { timeout: 30000 });
     const orderId = await rechargePage.evaluate(() => {
       const el = document.querySelector(".tran-id-sec.tux-text");
