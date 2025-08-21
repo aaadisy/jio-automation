@@ -1,0 +1,13 @@
+{
+  "name": "jio-automation",
+  "version": "1.0.0",
+  "main": "amazonLogin.js",
+  "scripts": {
+    "start": "node amazonLogin.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "express": "^5.1.0",
+    "puppeteer": "^24.17.0"
+  }
+}
