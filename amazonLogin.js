@@ -96,7 +96,7 @@ app.post("/signin", async (req, res) => {
 
     await page.type("#ap_email", email, { delay: 50 });
     await page.click("#continue");
-    await page.waitForTimeout(2000);
+    await new Promise(r => setTimeout(r, 2000));
 
     await page.type("#ap_password", password, { delay: 50 });
 
@@ -197,11 +197,11 @@ app.post("/recharge", async (req, res) => {
     if (!mobileInput) throw new Error("Mobile input not found");
 
     await mobileInput.type(mobileNumber, { delay: 100 });
-    await rechargePage.waitForTimeout(1000);
+    await new Promise(r => setTimeout(r, 2000));
     await mobileInput.press("Tab");
     await rechargePage.keyboard.type(amount, { delay: 100 });
 
-    await rechargePage.waitForTimeout(2000);
+    await new Promise(r => setTimeout(r, 2000));
     await rechargePage.keyboard.press("Tab");
     await rechargePage.keyboard.press("Tab");
     await rechargePage.keyboard.press("Enter");
