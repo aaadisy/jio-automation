@@ -75,13 +75,13 @@ async function isLoggedIn(page) {
 // ================= BROWSER LAUNCH HELPER =================
 async function launchBrowser() {
   return await puppeteer.launch({
-    headless: true,
+    headless: chromium.headless,
     args: chromium.args,
-    executablePath:
-      (await chromium.executablePath) || puppeteer.executablePath(), // ✅ important
+    executablePath: await chromium.executablePath(), // <-- FIXED
     defaultViewport: chromium.defaultViewport,
   });
 }
+
 
 // ================= API: SIGNIN =================
 app.post("/signin", async (req, res) => {
