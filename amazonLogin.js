@@ -1,6 +1,7 @@
-const express = require("express");
-const puppeteer = require("puppeteer");
 const fs = require("fs");
+const express = require("express");
+const chromium = require("@sparticuz/chromium");
+const puppeteer = require("puppeteer-core");
 
 const app = express();
 app.use(express.json());
